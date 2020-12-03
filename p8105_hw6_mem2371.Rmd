@@ -4,7 +4,7 @@ author: Megan Marziali
 output: github_document
 ---
 
-```{r, message = FALSE}
+```{r, message=FALSE, include=FALSE}
 library(tidyverse)
 library(rvest)
 library(ggplot2)
@@ -35,7 +35,7 @@ set.seed(1)
 
 Read in the data.
 
-```{r, message = FALSE, warning = FALSE}
+```{r, message=FALSE, warning=FALSE}
 homicide_df = 
   read_csv("./data/homicides.csv", na = c("", "NA", "Unknown")) %>% 
   mutate(
@@ -52,7 +52,11 @@ homicide_df =
   select(city_state, resolution, victim_age, victim_race, victim_sex)
 ```
 
-Start with one city.
+There are `r ncol(homicide_df)` variables in this dataset, including city and state, victim age, whether the case was resolved, race and sex. There are `r nrow(homicide_df)` observations, with `r sum(is.na(homicide_df))` missing observations.
+
+### Analyzing Baltimore
+
+This problem starts by running a regression model with case resolution as the outcome, and victim age as the exposure, adjusting for race and sex.
 
 ```{r}
 baltimore_df = 
@@ -72,7 +76,9 @@ glm(resolution ~ victim_age + victim_race + victim_sex,
   knitr::kable(digits = 3)
 ```
 
-Try this across cities.
+### Across Cities
+
+The following code maps the regression model outlined above across cities, and transforms beta estimates into odds ratios with appropriate confidence intervals.
 
 ```{r}
 models_results_df = 
@@ -93,6 +99,10 @@ models_results_df =
   select(city_state, term, OR, starts_with("CI"))
 ```
 
+### Plotting City by OR
+
+The following graph plots OR by city and state.
+
 ```{r}
 models_results_df %>% 
   filter(term == "victim_sexMale") %>% 
@@ -107,7 +117,7 @@ models_results_df %>%
 
 Loading and cleaning birthweight data.
 
-```{r}
+```{r, message=FALSE}
 bw_df = 
   read_csv("./data/birthweight.csv", na = c("", "NA", "Unknown")) %>% 
   mutate(
@@ -118,60 +128,77 @@ bw_df =
   )
 ```
 
+### Running Regression Model
+
 There is a total of `r ncol(bw_df)` variables included in this dataset, including sociodemographic information on the mother and father (such as race and income); the baby's sex, head circumference (cm), length at birth (cm) and birthweight (g); gestational age (weeks); and extensive biological information on the mother, including mother's weight at delivery (lbs), parity, pre-pregnancy BMI and average number of cigarettes smoked during pregnancy. There are `r sum(is.na(bw_df))` missing values.
 
 I opted to investigate the impact of the mother's weight gain during pregnancy on the child's birth weight. Potential confounders included *a priori* hypothesized predictors, such as average number of cigarettes smoked during pregnancy, the mother's age, baby's length at birth, family income, gestational age, and mother's height. I subsequently used the 10% rule for including confounders. Using this information, I adjusted for all aforementioned confounders except for mother's age.
 
-```{r}
+```{r, message=FALSE}
 # Main exposure
 lm(bwt ~ wtgain, data = bw_df) %>% 
-  broom::tidy()
+  broom::tidy() %>% 
+  knitr::kable(digits = 3)
 
 # Included as confounder
 lm(bwt ~ smoken, data = bw_df) %>% 
-  broom::tidy()
+  broom::tidy() %>% 
+  knitr::kable(digits = 3)
 
 # Not included as confounder
 lm(bwt ~ momage, data = bw_df) %>% 
-  broom::tidy()
+  broom::tidy() %>% 
+  knitr::kable(digits = 3)
 
 # Included as confounder
 lm(bwt ~ blength, data = bw_df) %>% 
-  broom::tidy()
+  broom::tidy() %>% 
+  knitr::kable(digits = 3)
 
 # Included as confounder
 lm(bwt ~ fincome, data = bw_df) %>% 
-  broom::tidy()
+  broom::tidy() %>% 
+  knitr::kable(digits = 3)
 
 # Included as confounder
 lm(bwt ~ gaweeks, data = bw_df) %>% 
-  broom::tidy()
+  broom::tidy() %>% 
+  knitr::kable(digits = 3)
 
 # Included as confounder
 lm(bwt ~ mheight, data = bw_df) %>% 
-  broom::tidy()
+  broom::tidy() %>% 
+  knitr::kable(digits = 3)
 
 # Included as confounder
 lm(bwt ~ ppwt, data = bw_df) %>% 
-  broom::tidy()
+  broom::tidy() %>% 
+  knitr::kable(digits = 3)
 
 m1_fit = lm(bwt ~ wtgain + smoken + blength + fincome + gaweeks + mheight + ppwt, data = bw_df)
 
-broom::tidy(m1_fit)
+broom::tidy(m1_fit) %>% 
+  knitr::kable(digits = 3)
 ```
 
-Investigating model fit:
+#### Pred vs. Resid Plot
+
+The following code chunk plots the predictions versus residuals for the linear regression model above. 
 
 ```{r}
 bw_df %>% 
   add_predictions(m1_fit) %>% 
   add_residuals(m1_fit) %>% 
   ggplot(aes(x = pred, y = resid)) + 
-  geom_point() +
+  geom_point(alpha = 0.5) +
   geom_line(aes(y = pred), color = "red")
 ```
 
-Running the other two models.
+Evidently, the model fit is not ideal, as the prediction line does not go through the data. There seem to be some clear outliers, but the data is mainly grouped together.
+
+### Model Comparison
+
+The other two models for comparison are both linear regression models: one with baby length (cm) and gestational age in weeks; and, the other with baby head circumference (cm), baby length (cm) and sex of the baby as exposures.
 
 ```{r}
 m2_fit = lm(bwt ~ blength + gaweeks, data = bw_df) %>% 
@@ -181,9 +208,9 @@ m3_fit = lm(bwt ~ bhead * blength * babysex, data = bw_df) %>%
   broom::tidy()
 ```
 
-The next step is comparing model 1 to models 2 and 3 using cross-validation. 
+The next step in model comparison is comparing model 1 to models 2 and 3 using cross-validation. 
 
-Splitting the data into testing and training datasets:
+We first want to splot the data into testing and training datasets:
 
 ```{r}
 cv_df = 
@@ -194,7 +221,7 @@ cv_df =
   )
 ```
 
-Calculating RMSEs:
+We subsequently want to caluclate RMSEs:
 
 ```{r}
 cv_df = 
@@ -209,7 +236,9 @@ cv_df =
     rmse_m3 = map2_dbl(m3_fit, test, ~rmse(model = .x, data = .y)))
 ```
 
-Investigating RMSEs across models:
+#### Investigating RMSEs
+
+The plot below illustrates the root-mean-square error (RMSE) across models.The violin plot demonstrates that the RMSE for models 1 and 2 are similar, while the RMSE for model 3 is lower. This seems to suggest that model 3 is the model that best fits the data.
 
 ```{r}
 cv_df %>% 
@@ -221,5 +250,85 @@ cv_df %>%
     names_prefix = "rmse_") %>% 
   mutate(model = fct_inorder(model)) %>% 
   ggplot(aes(x = model, y = rmse)) + geom_violin()
+```
+
+## Problem 3
+
+Importing data.
+
+```{r, message=FALSE}
+weather_df = 
+  rnoaa::meteo_pull_monitors(
+    c("USW00094728"),
+    var = c("PRCP", "TMIN", "TMAX"), 
+    date_min = "2017-01-01",
+    date_max = "2017-12-31") %>%
+  mutate(
+    name = recode(id, USW00094728 = "CentralPark_NY"),
+    tmin = tmin / 10,
+    tmax = tmax / 10) %>%
+  select(name, id, everything())
+```
+
+The following data includes `r ncol(weather_df)` variables, such as the name and ID of the weather station, date, precipitation, maximum temperature and minimum temperature. There are `r nrow(weather_df)` observations, with `r sum(is.na(weather_df))` missing observations. Overall, maximum temperature ranges from `r min(weather_df$tmax)` to `r max(weather_df$tmax)`, minimum temperature ranges from `r min(weather_df$tmin)` to `r max(weather_df$tmin)` and precipitation ranges from `r min(weather_df$prcp)` to `r max(weather_df$prcp)`.
+
+We next want to bootstrap the data, and create density plots of log(intercept * beta1) and R-squared.
+
+```{r}
+weather_res = 
+  weather_df %>% 
+  bootstrap(5000, id = "strap_number") %>% 
+  mutate(
+    models = map(.x = strap, ~lm(tmax ~ tmin, data = .x)),
+    results = map(models, broom::tidy),
+    r2 = map(models, broom::glance)
+  ) %>% 
+  select(strap_number, results, r2) %>% 
+  unnest(results) %>% 
+  select(strap_number, term, estimate, r2) %>% 
+  unnest(r2) %>% 
+  select(strap_number, term, estimate, r.squared) %>% 
+  pivot_wider(
+    names_from = term,
+    values_from = estimate
+  ) %>% 
+  rename(intercept = `(Intercept)`) %>% 
+  mutate(
+    logb = log(intercept * tmin)
+  )
+
+logb_plot = 
+  weather_res %>% 
+  select(logb) %>% 
+  ggplot(aes(x = logb)) +
+  geom_density()
+
+r2_plot = 
+  weather_res %>% 
+  select(r.squared) %>% 
+  ggplot(aes(x = r.squared)) +
+  geom_density()
+
+logb_plot + r2_plot
+```
+
+Density seems to peak around 2.02 for the log(intercept*B1) plot, and around 0.91 for the R-squared plot. Both plots exhibit an approximately normal distribution.
+
+The confidence intervals for both the R-squared and the log(intercept x B1) are calculated below. We can be 95% confident that the true value of log(intercept x B1) is between 1.97 and 2.06. Additionally, we can be 95% confident that the true value of R-squared is between 0.89 and 0.93.
+
+```{r}
+weather_res %>% 
+  select(r.squared, logb) %>% 
+  pivot_longer(
+    r.squared:logb,
+    names_to = "term",
+    values_to = "estimate"
+  ) %>% 
+  group_by(term) %>% 
+  summarize(
+    ci_lower = quantile(estimate, 0.025),
+    ci_upper = quantile(estimate, 0.975)
+  ) %>% 
+  knitr::kable(digits = 2)
 ```
 
