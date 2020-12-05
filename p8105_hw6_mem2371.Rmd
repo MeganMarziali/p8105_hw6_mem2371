@@ -52,7 +52,7 @@ homicide_df =
   select(city_state, resolution, victim_age, victim_race, victim_sex)
 ```
 
-There are `r ncol(homicide_df)` variables in this dataset, including city and state, victim age, whether the case was resolved, race and sex. There are `r nrow(homicide_df)` observations, with `r sum(is.na(homicide_df))` missing observations.
+There are `r ncol(homicide_df)` variables in this dataset, including city and state, victim age, whether the case was resolved, race and sex. There are `r nrow(homicide_df)` observations, with `r sum(is.na(homicide_df))` missing observations. Victim age ranges from `r min(homicide_df$age)` to `r max(homicide_df$age)`.
 
 ### Analyzing Baltimore
 
@@ -132,7 +132,7 @@ bw_df =
 
 There is a total of `r ncol(bw_df)` variables included in this dataset, including sociodemographic information on the mother and father (such as race and income); the baby's sex, head circumference (cm), length at birth (cm) and birthweight (g); gestational age (weeks); and extensive biological information on the mother, including mother's weight at delivery (lbs), parity, pre-pregnancy BMI and average number of cigarettes smoked during pregnancy. There are `r sum(is.na(bw_df))` missing values.
 
-I opted to investigate the impact of the mother's weight gain during pregnancy on the child's birth weight. Potential confounders included *a priori* hypothesized predictors, such as average number of cigarettes smoked during pregnancy, the mother's age, baby's length at birth, family income, gestational age, and mother's height. I subsequently used the 10% rule for including confounders. Using this information, I adjusted for all aforementioned confounders except for mother's age.
+I opted to investigate the impact of the mother's weight gain during pregnancy on the child's birth weight. Potential confounders included *a priori* hypothesized predictors, such as average number of cigarettes smoked during pregnancy, the mother's age, baby's length at birth, family income, gestational age, mother's height, and previous low birthweight baby. I subsequently used the 10% rule for including confounders. Using this information, I adjusted for average number of cigarettes smoked during pregnancy, baby's length at birth, gestational age, and mother's height.
 
 ```{r, message=FALSE}
 # Main exposure
@@ -155,7 +155,7 @@ lm(bwt ~ blength, data = bw_df) %>%
   broom::tidy() %>% 
   knitr::kable(digits = 3)
 
-# Included as confounder
+# Not included as confounder
 lm(bwt ~ fincome, data = bw_df) %>% 
   broom::tidy() %>% 
   knitr::kable(digits = 3)
@@ -170,12 +170,12 @@ lm(bwt ~ mheight, data = bw_df) %>%
   broom::tidy() %>% 
   knitr::kable(digits = 3)
 
-# Included as confounder
+# Not included as confounder
 lm(bwt ~ ppwt, data = bw_df) %>% 
   broom::tidy() %>% 
   knitr::kable(digits = 3)
 
-m1_fit = lm(bwt ~ wtgain + smoken + blength + fincome + gaweeks + mheight + ppwt, data = bw_df)
+m1_fit = lm(bwt ~ wtgain + smoken + blength + gaweeks + mheight, data = bw_df)
 
 broom::tidy(m1_fit) %>% 
   knitr::kable(digits = 3)
@@ -316,7 +316,7 @@ Density seems to peak around 2.02 for the log(intercept*B1) plot, and around 0.9
 
 The confidence intervals for both the R-squared and the log(intercept x B1) are calculated below. We can be 95% confident that the true value of log(intercept x B1) is between 1.97 and 2.06. Additionally, we can be 95% confident that the true value of R-squared is between 0.89 and 0.93.
 
-```{r}
+```{r, message=FALSE}
 weather_res %>% 
   select(r.squared, logb) %>% 
   pivot_longer(
